@@ -101,9 +101,12 @@ def _load_sheet_as_df(wb: openpyxl.Workbook, sheet_name: str) -> pd.DataFrame:
         return pd.DataFrame()
 
     headers = [str(h) if h is not None else f"col_{i}" for i, h in enumerate(data[0])]
+    n = len(headers)
     rows = []
     for row in data[1:]:
-        rows.append(list(row))
+        r = list(row)
+        # openpyxl omits trailing None cells, so row length can differ from header length
+        rows.append((r + [None] * n)[:n])
 
     df = pd.DataFrame(rows, columns=headers)
 
