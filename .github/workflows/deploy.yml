@@ -119,10 +119,14 @@ jobs:
       # first; it's a no-op if they're already plain strings or don't exist.
       - name: Clear secret-type env vars
         run: |
+          # --clear-secrets removes ALL Secret Manager references from the service
+          # in one atomic call. This prevents the type-conflict error when any env
+          # var was previously set as a secret reference instead of a plain string.
+          # Safe to run on every deploy — no-op if no secret refs exist.
           gcloud run services update ${{ env.SERVICE }} \
             --region=${{ env.REGION }} \
             --platform=managed \
-            --remove-secrets=APP_PASSWORD,ANTHROPIC_API_KEY \
+            --clear-secrets \
             --quiet 2>/dev/null || true
 
       # ── 6. Deploy to Cloud Run ─────────────────────────────────────────────
