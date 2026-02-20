@@ -323,6 +323,49 @@ hr {
     border-radius: 12px;
     padding: 0.9rem 1rem;
 }
+[data-testid="stMetricValue"] { color: #a5b4fc !important; font-weight: 700 !important; }
+[data-testid="stMetricLabel"] { color: #94a3b8 !important; }
+[data-testid="stMetricDelta"]  { font-size: 0.85rem !important; }
+
+/* ── Widget labels ──────────────────────────────────────────────────────── */
+[data-testid="stWidgetLabel"],
+[data-testid="stWidgetLabel"] p,
+[data-testid="stWidgetLabel"] label { color: #94a3b8 !important; font-size: 0.85rem !important; }
+
+/* ── General paragraph / body text ─────────────────────────────────────── */
+p, .stMarkdown p { color: #cbd5e1 !important; }
+label                               { color: #94a3b8 !important; }
+
+/* ── Number inputs ──────────────────────────────────────────────────────── */
+input[type="number"],
+[data-testid="stNumberInput"] input {
+    background: rgba(10, 15, 30, 0.7) !important;
+    border: 1px solid rgba(99, 102, 241, 0.25) !important;
+    border-radius: 9px !important;
+    color: #e2e8f0 !important;
+    font-family: 'Inter', sans-serif !important;
+}
+
+/* ── Select boxes ───────────────────────────────────────────────────────── */
+[data-testid="stSelectbox"] [data-baseweb="select"] > div { background: rgba(10, 15, 30, 0.7) !important; color: #e2e8f0 !important; border-color: rgba(99, 102, 241, 0.25) !important; }
+[data-baseweb="popover"] [data-baseweb="menu"]             { background: #0d1528 !important; border: 1px solid rgba(99,102,241,0.2) !important; }
+[data-baseweb="option"]                                    { background: transparent !important; color: #cbd5e1 !important; }
+[data-baseweb="option"]:hover                              { background: rgba(99,102,241,0.15) !important; }
+
+/* ── Checkbox / radio ───────────────────────────────────────────────────── */
+[data-testid="stCheckbox"] label p,
+[data-testid="stRadio"]    label p { color: #cbd5e1 !important; }
+
+/* ── Placeholder ────────────────────────────────────────────────────────── */
+::placeholder { color: rgba(148, 163, 184, 0.4) !important; }
+
+/* ── Sidebar text ───────────────────────────────────────────────────────── */
+[data-testid="stSidebar"] p     { color: #94a3b8 !important; }
+[data-testid="stSidebar"] label { color: #94a3b8 !important; }
+
+/* ── Alert / warning text ───────────────────────────────────────────────── */
+[data-testid="stAlert"] p,
+[data-testid="stAlert"] div { color: #e2e8f0 !important; }
 </style>
 """,
     unsafe_allow_html=True,
@@ -474,8 +517,10 @@ def _save_upload(upload, suffix: str) -> str:
 
 
 def _api_key() -> str:
-    if st.session_state.get("_api_key_val"):
-        return st.session_state["_api_key_val"]
+    # Read from environment (set via Cloud Run env var / GitHub Secret)
+    key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if key:
+        return key
     try:
         return st.secrets.get("ANTHROPIC_API_KEY", "")
     except Exception:
@@ -613,26 +658,8 @@ with st.sidebar:
         use_container_width=True,
     )
 
-    # ── API key (minimal, tucked away) ──────────────────────────────────────
-    st.markdown(_html_section_label("AI Coach", "🤖"), unsafe_allow_html=True)
-
-    _default_key = ""
-    try:
-        _default_key = st.secrets.get("ANTHROPIC_API_KEY", "")
-    except Exception:
-        pass
-
-    api_key_input = st.text_input(
-        "Anthropic API Key",
-        value=_default_key,
-        type="password",
-        placeholder="sk-ant-…  (required for AI coach)",
-        label_visibility="collapsed",
-        key="_api_key_val",
-    )
-    st.caption("API key — stored only in your session")
-
     # ── Persistent AI Chat ───────────────────────────────────────────────────
+    st.markdown(_html_section_label("AI Coach", "🤖"), unsafe_allow_html=True)
     st.divider()
 
     has_data = "result" in st.session_state
@@ -648,7 +675,7 @@ with st.sidebar:
     elif not has_agent:
         st.markdown(
             '<div style="color:rgba(100,116,139,0.55);font-size:0.78rem;text-align:center;padding:0.8rem 0;">'
-            "Add an API key above<br>to enable the AI Coach"
+            "AI Coach initializing…<br>Re-run analysis to activate"
             "</div>",
             unsafe_allow_html=True,
         )

@@ -414,17 +414,14 @@ def pace_trend_chart(garmin_data) -> go.Figure:
     y_max = df["avg_pace"].max()
     pad = (y_max - y_min) * 0.12 if y_max > y_min else 0.5
 
-    fig.update_layout(
-        **_BASE,
-        title="Flat-Run Pace Trend  (lower = faster)",
-        yaxis=dict(
-            title="min/mile",
-            range=[y_max + pad, y_min - pad],
-            gridcolor=_GRID,
-            tickvals=tick_vals,
-            ticktext=[_fmt_pace(v) for v in tick_vals],
-        ),
-    )
+    fig.update_layout(**_BASE, title="Flat-Run Pace Trend  (lower = faster)")
+    fig.update_layout(yaxis=dict(
+        title="min/mile",
+        range=[y_max + pad, y_min - pad],
+        gridcolor=_GRID,
+        tickvals=tick_vals,
+        ticktext=[_fmt_pace(v) for v in tick_vals],
+    ))
     return fig
 
 
@@ -472,10 +469,10 @@ def muscle_group_chart(
         **_BASE,
         title="Sets by Muscle Group — this week  (green = priority)",
         xaxis_title="Sets",
-        yaxis=dict(gridcolor=_GRID),
         height=max(280, len(totals) * 32 + 80),
         margin=dict(l=130, r=20, t=50, b=40),
     )
+    fig.update_layout(yaxis=dict(gridcolor=_GRID))
     return fig
 
 
