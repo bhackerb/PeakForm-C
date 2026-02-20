@@ -20,6 +20,34 @@ st.set_page_config(
 
 
 # ---------------------------------------------------------------------------
+# Password gate
+# ---------------------------------------------------------------------------
+
+def _check_password() -> bool:
+    """Return True if the user has entered the correct password."""
+    if st.session_state.get("authenticated"):
+        return True
+
+    st.markdown("## 🏔️ PeakForm")
+    password = st.text_input("Password", type="password", key="_pw")
+    if st.button("Sign in", type="primary"):
+        expected = os.environ.get("APP_PASSWORD") or ""
+        try:
+            expected = expected or st.secrets.get("APP_PASSWORD", "")
+        except Exception:
+            pass
+        if password and password == expected:
+            st.session_state.authenticated = True
+            st.rerun()
+        else:
+            st.error("Incorrect password.")
+    st.stop()
+
+
+_check_password()
+
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
