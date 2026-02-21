@@ -26,11 +26,23 @@ st.set_page_config(
 st.markdown(
     """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Fonts                                                                       */
+/* Headings  → Space Grotesk  (geometric, authoritative, screen-optimised)    */
+/* Body      → Inter          (humanist, high-legibility at small sizes)       */
+/* ─────────────────────────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+/* ── Global base — 16 px anchor so every rem is predictable ─────────────── */
+html { font-size: 16px !important; }
 
 /* ── Reset ───────────────────────────────────────────────────────────────── */
 html, body, [class*="css"], .stApp {
     font-family: 'Inter', sans-serif !important;
+    font-size: 1rem !important;
+    line-height: 1.6 !important;
+    color: #cbd5e1 !important;
+    -webkit-font-smoothing: antialiased !important;
 }
 
 /* ── App background ─────────────────────────────────────────────────────── */
@@ -149,25 +161,52 @@ button[kind="primary"]:disabled {
 
 /* ── File uploader ──────────────────────────────────────────────────────── */
 [data-testid="stFileUploader"] {
-    background: rgba(13, 21, 40, 0.6) !important;
-    border: 1px dashed rgba(99, 102, 241, 0.3) !important;
+    background: transparent !important;
+    border: none !important;
+}
+[data-testid="stFileUploaderDropzone"] {
+    background: rgba(8, 12, 20, 0.85) !important;
+    border: 1px dashed rgba(99, 102, 241, 0.35) !important;
     border-radius: 10px !important;
 }
-[data-testid="stFileUploader"]:hover {
-    border-color: rgba(129, 140, 248, 0.5) !important;
+[data-testid="stFileUploaderDropzone"]:hover {
+    border-color: rgba(129, 140, 248, 0.6) !important;
+    background: rgba(99, 102, 241, 0.06) !important;
 }
+[data-testid="stFileUploaderDropzone"] p,
+[data-testid="stFileUploaderDropzone"] small,
+[data-testid="stFileUploaderDropzone"] span { color: #94a3b8 !important; }
+[data-testid="stFileUploaderDropzone"] button {
+    background: rgba(99, 102, 241, 0.15) !important;
+    border: 1px solid rgba(99, 102, 241, 0.35) !important;
+    color: #a5b4fc !important;
+    border-radius: 8px !important;
+}
+/* Uploaded file row */
+[data-testid="stFileUploaderFile"],
+[data-testid="stFileUploaderFileName"] {
+    background: rgba(13, 21, 40, 0.7) !important;
+    border: 1px solid rgba(99, 102, 241, 0.15) !important;
+    border-radius: 8px !important;
+    color: #cbd5e1 !important;
+}
+[data-testid="stFileUploaderFile"] small,
+[data-testid="stFileUploaderFile"] p,
+[data-testid="stFileUploaderFile"] span { color: #94a3b8 !important; }
 
 /* ── Expander ───────────────────────────────────────────────────────────── */
 [data-testid="stExpander"] details {
-    background: rgba(13, 21, 40, 0.5) !important;
-    border: 1px solid rgba(99, 102, 241, 0.15) !important;
-    border-radius: 10px !important;
+    background: rgba(8, 12, 20, 0.85) !important;
+    border: 1px solid rgba(99, 102, 241, 0.18) !important;
+    border-radius: 12px !important;
 }
 [data-testid="stExpander"] summary {
+    background: transparent !important;
     color: #94a3b8 !important;
     font-size: 0.85rem !important;
     font-weight: 500 !important;
 }
+[data-testid="stExpander"] summary:hover { color: #c7d2fe !important; }
 
 /* ── Alerts / info boxes ─────────────────────────────────────────────────── */
 [data-testid="stAlert"] {
@@ -245,24 +284,71 @@ hr {
     border-radius: 10px;
 }
 
-/* ── Markdown in report tab ─────────────────────────────────────────────── */
+/* ── Markdown typography — full scale ───────────────────────────────────── */
+/*
+   Major-third scale (×1.250) anchored at 1rem = 16 px
+   H1  2.25 rem  → 36 px    lh 1.2
+   H2  1.75 rem  → 28 px    lh 1.25
+   H3  1.375rem  → 22 px    lh 1.35
+   H4  1.125rem  → 18 px    lh 1.4
+   p / li  1 rem → 16 px    lh 1.65
+*/
+[data-testid="stMarkdown"] h1,
+[data-testid="stMarkdown"] h2,
+[data-testid="stMarkdown"] h3,
+[data-testid="stMarkdown"] h4 {
+    font-family: 'Space Grotesk', 'Inter', sans-serif !important;
+    letter-spacing: -0.02em !important;
+}
 [data-testid="stMarkdown"] h1 {
-    color: #a5b4fc;
-    font-weight: 800;
-    letter-spacing: -0.02em;
+    font-size: 2.25rem !important;
+    font-weight: 700 !important;
+    line-height: 1.2 !important;
+    color: #a5b4fc !important;
+    margin-top: 0 !important;
+    margin-bottom: 0.75rem !important;
 }
 [data-testid="stMarkdown"] h2 {
-    color: #818cf8;
-    font-weight: 700;
-    margin-top: 1.8rem;
-    padding-bottom: 0.3rem;
-    border-bottom: 1px solid rgba(129, 140, 248, 0.15);
+    font-size: 1.75rem !important;
+    font-weight: 700 !important;
+    line-height: 1.25 !important;
+    color: #a5b4fc !important;
+    margin-top: 2rem !important;
+    margin-bottom: 0.5rem !important;
+    padding-bottom: 0.35rem !important;
+    border-bottom: 1px solid rgba(129, 140, 248, 0.2) !important;
 }
 [data-testid="stMarkdown"] h3 {
-    color: #c7d2fe;
-    font-weight: 600;
-    margin-top: 1.2rem;
+    font-size: 1.375rem !important;
+    font-weight: 600 !important;
+    line-height: 1.35 !important;
+    color: #c7d2fe !important;
+    margin-top: 1.5rem !important;
+    margin-bottom: 0.4rem !important;
 }
+[data-testid="stMarkdown"] h4 {
+    font-size: 1.125rem !important;
+    font-weight: 600 !important;
+    line-height: 1.4 !important;
+    color: #e2e8f0 !important;
+    margin-top: 1.2rem !important;
+    margin-bottom: 0.3rem !important;
+}
+[data-testid="stMarkdown"] p {
+    font-size: 1rem !important;
+    line-height: 1.65 !important;
+    color: #cbd5e1 !important;
+    margin-bottom: 0.75rem !important;
+}
+[data-testid="stMarkdown"] li {
+    font-size: 1rem !important;
+    line-height: 1.65 !important;
+    color: #cbd5e1 !important;
+    margin-bottom: 0.3rem !important;
+}
+[data-testid="stMarkdown"] ul,
+[data-testid="stMarkdown"] ol { color: #cbd5e1 !important; padding-left: 1.4rem !important; }
+[data-testid="stMarkdown"] strong { color: #e2e8f0 !important; font-weight: 600 !important; }
 [data-testid="stMarkdown"] table {
     width: 100%;
     border-collapse: collapse;
@@ -313,7 +399,21 @@ hr {
 
 /* ── Caption ────────────────────────────────────────────────────────────── */
 .stCaption, [data-testid="stCaptionContainer"] {
-    color: rgba(100, 116, 139, 0.8) !important;
+    color: rgba(148, 163, 184, 0.7) !important;
+    font-size: 0.8rem !important;
+    line-height: 1.5 !important;
+}
+
+/* ── Global heading font (Space Grotesk everywhere) ─────────────────────── */
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Space Grotesk', 'Inter', sans-serif !important;
+    letter-spacing: -0.02em !important;
+}
+
+/* ── Tab labels ─────────────────────────────────────────────────────────── */
+[data-testid="stTabs"] [data-baseweb="tab"] {
+    font-size: 0.9rem !important;
+    letter-spacing: 0.01em !important;
 }
 
 /* ── Metric widget ──────────────────────────────────────────────────────── */
@@ -658,60 +758,6 @@ with st.sidebar:
         use_container_width=True,
     )
 
-    # ── Persistent AI Chat ───────────────────────────────────────────────────
-    st.markdown(_html_section_label("AI Coach", "🤖"), unsafe_allow_html=True)
-    st.divider()
-
-    has_data = "result" in st.session_state
-    has_agent = "agent" in st.session_state
-
-    if not has_data:
-        st.markdown(
-            '<div style="color:rgba(100,116,139,0.55);font-size:0.78rem;text-align:center;padding:0.8rem 0;">'
-            "Run an analysis to<br>unlock the AI Coach"
-            "</div>",
-            unsafe_allow_html=True,
-        )
-    elif not has_agent:
-        st.markdown(
-            '<div style="color:rgba(100,116,139,0.55);font-size:0.78rem;text-align:center;padding:0.8rem 0;">'
-            "AI Coach initializing…<br>Re-run analysis to activate"
-            "</div>",
-            unsafe_allow_html=True,
-        )
-    else:
-        # Chat history
-        st.markdown(
-            _html_chat_history(st.session_state.get("messages", [])),
-            unsafe_allow_html=True,
-        )
-
-        # Input form
-        with st.form("sidebar_chat_form", clear_on_submit=True):
-            user_input = st.text_input(
-                "chat_input",
-                placeholder="Ask about your training data…",
-                label_visibility="collapsed",
-            )
-            send = st.form_submit_button("Send →", use_container_width=True)
-
-        if send and user_input.strip():
-            msgs = st.session_state.setdefault("messages", [])
-            msgs.append({"role": "user", "content": user_input.strip()})
-            with st.spinner(""):
-                try:
-                    reply = st.session_state.agent.chat(user_input.strip())
-                except Exception as exc:
-                    reply = f"⚠️ Error: {exc}"
-            msgs.append({"role": "assistant", "content": reply})
-            st.rerun()
-
-        if st.session_state.get("messages"):
-            if st.button("Clear chat", use_container_width=True):
-                st.session_state.messages = []
-                st.session_state.agent.reset()
-                st.rerun()
-
     # ── Footer ───────────────────────────────────────────────────────────────
     st.markdown(
         '<div style="color:rgba(100,116,139,0.4);font-size:0.68rem;text-align:center;padding:1rem 0 0.5rem;">'
@@ -845,12 +891,11 @@ if "result" not in st.session_state:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Main content — tabs
+# Main content — two-column layout (tabs left · AI chat right)
 # ─────────────────────────────────────────────────────────────────────────────
 
 result = st.session_state.result
 
-# Re-init agent if API key was entered after analysis ran
 if "agent" not in st.session_state and _api_key():
     _init_agent(result)
 
@@ -862,111 +907,172 @@ week_label = (
 
 st.markdown(_html_week_banner(week_label), unsafe_allow_html=True)
 
-tab_report, tab_charts = st.tabs(["📊  Weekly Report", "📈  Charts"])
+col_main, col_chat = st.columns([3, 1], gap="large")
+
+# ── Left: report + charts tabs ───────────────────────────────────────────────
+with col_main:
+    tab_report, tab_charts = st.tabs(["📊  Weekly Report", "📈  Charts"])
+
+    with tab_report:
+        st.markdown(result.report_md)
+        st.markdown("<div style='height:1rem'></div>", unsafe_allow_html=True)
+        st.download_button(
+            label="⬇️  Download report (.md)",
+            data=result.report_md,
+            file_name=f"peakform_report_{result.week_start.strftime('%Y-%m-%d')}.md",
+            mime="text/markdown",
+        )
+
+    with tab_charts:
+        from peakform.charts import (
+            adherence_scorecard,
+            calories_vs_target_chart,
+            muscle_group_chart,
+            pace_trend_chart,
+            protein_adherence_chart,
+            weekly_deficit_chart,
+            weekly_mileage_chart,
+            weight_trend_chart,
+        )
+
+        mf = result.mf_data
+        gd = result.garmin_data
+        w_start = result.week_start
+        w_end = result.week_end
+
+        _PC = dict(use_container_width=True, config={"displayModeBar": False})
+
+        st.markdown(
+            _html_section_header("Plan Adherence", "How closely did this week match the targets?"),
+            unsafe_allow_html=True,
+        )
+        try:
+            adh_fig, _ = adherence_scorecard(mf, gd, w_start, w_end)
+            st.plotly_chart(adh_fig, **_PC)
+        except Exception as e:
+            st.warning(f"Adherence scorecard unavailable: {e}")
+
+        st.divider()
+
+        st.markdown(
+            _html_section_header("Weight & Mileage", "Body weight trend toward goal · weekly running distance"),
+            unsafe_allow_html=True,
+        )
+        col_w, col_m = st.columns(2, gap="medium")
+        with col_w:
+            try:
+                st.plotly_chart(weight_trend_chart(mf), **_PC)
+            except Exception as e:
+                st.warning(f"Weight chart unavailable: {e}")
+        with col_m:
+            try:
+                st.plotly_chart(weekly_mileage_chart(gd), **_PC)
+            except Exception as e:
+                st.warning(f"Mileage chart unavailable: {e}")
+
+        st.divider()
+
+        st.markdown(
+            _html_section_header("Nutrition", "Daily calorie & protein tracking vs. active targets"),
+            unsafe_allow_html=True,
+        )
+        col_cal, col_prot = st.columns(2, gap="medium")
+        with col_cal:
+            try:
+                st.plotly_chart(calories_vs_target_chart(mf), **_PC)
+            except Exception as e:
+                st.warning(f"Calories chart unavailable: {e}")
+        with col_prot:
+            try:
+                st.plotly_chart(protein_adherence_chart(mf), **_PC)
+            except Exception as e:
+                st.warning(f"Protein chart unavailable: {e}")
+
+        try:
+            st.plotly_chart(weekly_deficit_chart(mf), **_PC)
+        except Exception as e:
+            st.warning(f"Deficit chart unavailable: {e}")
+
+        st.divider()
+
+        st.markdown(
+            _html_section_header("Running & Strength", "Flat-run pace trend · sets by muscle group this week"),
+            unsafe_allow_html=True,
+        )
+        col_pace, col_mg = st.columns(2, gap="medium")
+        with col_pace:
+            try:
+                st.plotly_chart(pace_trend_chart(gd), **_PC)
+            except Exception as e:
+                st.warning(f"Pace chart unavailable: {e}")
+        with col_mg:
+            try:
+                st.plotly_chart(muscle_group_chart(mf, w_start, w_end), **_PC)
+            except Exception as e:
+                st.warning(f"Muscle group chart unavailable: {e}")
 
 
-# ── Report tab ───────────────────────────────────────────────────────────────
-with tab_report:
-    st.markdown(result.report_md)
-
-    st.markdown("<div style='height:1rem'></div>", unsafe_allow_html=True)
-    st.download_button(
-        label="⬇️  Download report (.md)",
-        data=result.report_md,
-        file_name=f"peakform_report_{result.week_start.strftime('%Y-%m-%d')}.md",
-        mime="text/markdown",
-    )
-
-
-# ── Charts tab ───────────────────────────────────────────────────────────────
-with tab_charts:
-    from peakform.charts import (
-        adherence_scorecard,
-        calories_vs_target_chart,
-        muscle_group_chart,
-        pace_trend_chart,
-        protein_adherence_chart,
-        weekly_deficit_chart,
-        weekly_mileage_chart,
-        weight_trend_chart,
-    )
-
-    mf = result.mf_data
-    gd = result.garmin_data
-    w_start = result.week_start
-    w_end = result.week_end
-
-    _PC = dict(use_container_width=True, config={"displayModeBar": False})
-
-    # ── Adherence scorecard ──────────────────────────────────────────────────
+# ── Right: AI chat panel ──────────────────────────────────────────────────────
+with col_chat:
     st.markdown(
-        _html_section_header("Plan Adherence", "How closely did this week match the targets?"),
+        """
+<div style="
+  background: linear-gradient(180deg, rgba(12,17,32,0.95) 0%, rgba(13,21,40,0.98) 100%);
+  border: 1px solid rgba(99,102,241,0.2);
+  border-radius: 16px;
+  padding: 1rem 1rem 0.75rem;
+  margin-top: 0.1rem;
+">
+  <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.75rem;">
+    <span style="font-size:1.1rem;filter:drop-shadow(0 0 6px rgba(129,140,248,0.6))">🤖</span>
+    <span style="
+      background:linear-gradient(135deg,#818cf8,#c084fc);
+      -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+      background-clip:text;font-weight:700;font-size:0.95rem;
+    ">AI Coach</span>
+  </div>
+</div>
+""",
         unsafe_allow_html=True,
     )
-    try:
-        adh_fig, _ = adherence_scorecard(mf, gd, w_start, w_end)
-        st.plotly_chart(adh_fig, **_PC)
-    except Exception as e:
-        st.warning(f"Adherence scorecard unavailable: {e}")
 
-    st.divider()
+    has_agent = "agent" in st.session_state
 
-    # ── Weight & Mileage ─────────────────────────────────────────────────────
-    st.markdown(
-        _html_section_header("Weight & Mileage", "Body weight trend toward goal · weekly running distance"),
-        unsafe_allow_html=True,
-    )
-    col_w, col_m = st.columns(2, gap="medium")
-    with col_w:
-        try:
-            st.plotly_chart(weight_trend_chart(mf), **_PC)
-        except Exception as e:
-            st.warning(f"Weight chart unavailable: {e}")
-    with col_m:
-        try:
-            st.plotly_chart(weekly_mileage_chart(gd), **_PC)
-        except Exception as e:
-            st.warning(f"Mileage chart unavailable: {e}")
+    if not has_agent:
+        st.markdown(
+            '<div style="color:rgba(100,116,139,0.6);font-size:0.8rem;'
+            'text-align:center;padding:1.5rem 0.5rem;">'
+            "Run an analysis to<br>activate the AI Coach."
+            "</div>",
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            _html_chat_history(st.session_state.get("messages", [])),
+            unsafe_allow_html=True,
+        )
 
-    st.divider()
+        with st.form("chat_form", clear_on_submit=True):
+            user_input = st.text_input(
+                "message",
+                placeholder="Ask about your data…",
+                label_visibility="collapsed",
+            )
+            send = st.form_submit_button("Send →", use_container_width=True)
 
-    # ── Nutrition ────────────────────────────────────────────────────────────
-    st.markdown(
-        _html_section_header("Nutrition", "Daily calorie & protein tracking vs. active targets"),
-        unsafe_allow_html=True,
-    )
-    col_cal, col_prot = st.columns(2, gap="medium")
-    with col_cal:
-        try:
-            st.plotly_chart(calories_vs_target_chart(mf), **_PC)
-        except Exception as e:
-            st.warning(f"Calories chart unavailable: {e}")
-    with col_prot:
-        try:
-            st.plotly_chart(protein_adherence_chart(mf), **_PC)
-        except Exception as e:
-            st.warning(f"Protein chart unavailable: {e}")
+        if send and user_input.strip():
+            msgs = st.session_state.setdefault("messages", [])
+            msgs.append({"role": "user", "content": user_input.strip()})
+            with st.spinner(""):
+                try:
+                    reply = st.session_state.agent.chat(user_input.strip())
+                except Exception as exc:
+                    reply = f"⚠️ Error: {exc}"
+            msgs.append({"role": "assistant", "content": reply})
+            st.rerun()
 
-    try:
-        st.plotly_chart(weekly_deficit_chart(mf), **_PC)
-    except Exception as e:
-        st.warning(f"Deficit chart unavailable: {e}")
-
-    st.divider()
-
-    # ── Running & Strength ───────────────────────────────────────────────────
-    st.markdown(
-        _html_section_header("Running & Strength", "Flat-run pace trend · sets by muscle group this week"),
-        unsafe_allow_html=True,
-    )
-    col_pace, col_mg = st.columns(2, gap="medium")
-    with col_pace:
-        try:
-            st.plotly_chart(pace_trend_chart(gd), **_PC)
-        except Exception as e:
-            st.warning(f"Pace chart unavailable: {e}")
-    with col_mg:
-        try:
-            st.plotly_chart(muscle_group_chart(mf, w_start, w_end), **_PC)
-        except Exception as e:
-            st.warning(f"Muscle group chart unavailable: {e}")
+        if st.session_state.get("messages"):
+            if st.button("Clear chat", use_container_width=True):
+                st.session_state.messages = []
+                st.session_state.agent.reset()
+                st.rerun()
