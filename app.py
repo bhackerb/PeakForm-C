@@ -26,11 +26,23 @@ st.set_page_config(
 st.markdown(
     """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Fonts                                                                       */
+/* Headings  → Space Grotesk  (geometric, authoritative, screen-optimised)    */
+/* Body      → Inter          (humanist, high-legibility at small sizes)       */
+/* ─────────────────────────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+/* ── Global base — 16 px anchor so every rem is predictable ─────────────── */
+html { font-size: 16px !important; }
 
 /* ── Reset ───────────────────────────────────────────────────────────────── */
 html, body, [class*="css"], .stApp {
     font-family: 'Inter', sans-serif !important;
+    font-size: 1rem !important;
+    line-height: 1.6 !important;
+    color: #cbd5e1 !important;
+    -webkit-font-smoothing: antialiased !important;
 }
 
 /* ── App background ─────────────────────────────────────────────────────── */
@@ -272,34 +284,71 @@ hr {
     border-radius: 10px;
 }
 
-/* ── Markdown in report tab ─────────────────────────────────────────────── */
-[data-testid="stMarkdown"] h1 {
-    color: #a5b4fc !important;
-    font-weight: 800 !important;
+/* ── Markdown typography — full scale ───────────────────────────────────── */
+/*
+   Major-third scale (×1.250) anchored at 1rem = 16 px
+   H1  2.25 rem  → 36 px    lh 1.2
+   H2  1.75 rem  → 28 px    lh 1.25
+   H3  1.375rem  → 22 px    lh 1.35
+   H4  1.125rem  → 18 px    lh 1.4
+   p / li  1 rem → 16 px    lh 1.65
+*/
+[data-testid="stMarkdown"] h1,
+[data-testid="stMarkdown"] h2,
+[data-testid="stMarkdown"] h3,
+[data-testid="stMarkdown"] h4 {
+    font-family: 'Space Grotesk', 'Inter', sans-serif !important;
     letter-spacing: -0.02em !important;
 }
-[data-testid="stMarkdown"] h2 {
-    color: #a5b4fc !important;
+[data-testid="stMarkdown"] h1 {
+    font-size: 2.25rem !important;
     font-weight: 700 !important;
-    margin-top: 1.8rem !important;
-    padding-bottom: 0.3rem !important;
+    line-height: 1.2 !important;
+    color: #a5b4fc !important;
+    margin-top: 0 !important;
+    margin-bottom: 0.75rem !important;
+}
+[data-testid="stMarkdown"] h2 {
+    font-size: 1.75rem !important;
+    font-weight: 700 !important;
+    line-height: 1.25 !important;
+    color: #a5b4fc !important;
+    margin-top: 2rem !important;
+    margin-bottom: 0.5rem !important;
+    padding-bottom: 0.35rem !important;
     border-bottom: 1px solid rgba(129, 140, 248, 0.2) !important;
 }
 [data-testid="stMarkdown"] h3 {
-    color: #c7d2fe !important;
+    font-size: 1.375rem !important;
     font-weight: 600 !important;
-    margin-top: 1.2rem !important;
+    line-height: 1.35 !important;
+    color: #c7d2fe !important;
+    margin-top: 1.5rem !important;
+    margin-bottom: 0.4rem !important;
 }
 [data-testid="stMarkdown"] h4 {
-    color: #e2e8f0 !important;
+    font-size: 1.125rem !important;
     font-weight: 600 !important;
-    margin-top: 0.9rem !important;
+    line-height: 1.4 !important;
+    color: #e2e8f0 !important;
+    margin-top: 1.2rem !important;
+    margin-bottom: 0.3rem !important;
 }
-[data-testid="stMarkdown"] p  { color: #cbd5e1 !important; }
-[data-testid="stMarkdown"] li { color: #cbd5e1 !important; line-height: 1.65 !important; }
+[data-testid="stMarkdown"] p {
+    font-size: 1rem !important;
+    line-height: 1.65 !important;
+    color: #cbd5e1 !important;
+    margin-bottom: 0.75rem !important;
+}
+[data-testid="stMarkdown"] li {
+    font-size: 1rem !important;
+    line-height: 1.65 !important;
+    color: #cbd5e1 !important;
+    margin-bottom: 0.3rem !important;
+}
 [data-testid="stMarkdown"] ul,
-[data-testid="stMarkdown"] ol { color: #cbd5e1 !important; }
-[data-testid="stMarkdown"] strong { color: #e2e8f0 !important; }
+[data-testid="stMarkdown"] ol { color: #cbd5e1 !important; padding-left: 1.4rem !important; }
+[data-testid="stMarkdown"] strong { color: #e2e8f0 !important; font-weight: 600 !important; }
 [data-testid="stMarkdown"] table {
     width: 100%;
     border-collapse: collapse;
@@ -350,7 +399,21 @@ hr {
 
 /* ── Caption ────────────────────────────────────────────────────────────── */
 .stCaption, [data-testid="stCaptionContainer"] {
-    color: rgba(100, 116, 139, 0.8) !important;
+    color: rgba(148, 163, 184, 0.7) !important;
+    font-size: 0.8rem !important;
+    line-height: 1.5 !important;
+}
+
+/* ── Global heading font (Space Grotesk everywhere) ─────────────────────── */
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Space Grotesk', 'Inter', sans-serif !important;
+    letter-spacing: -0.02em !important;
+}
+
+/* ── Tab labels ─────────────────────────────────────────────────────────── */
+[data-testid="stTabs"] [data-baseweb="tab"] {
+    font-size: 0.9rem !important;
+    letter-spacing: 0.01em !important;
 }
 
 /* ── Metric widget ──────────────────────────────────────────────────────── */
