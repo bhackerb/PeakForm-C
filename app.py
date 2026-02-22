@@ -281,7 +281,7 @@ hr {
 
 /* ── Scrollable chat history container ──────────────────────────────────── */
 .pf-chat-history {
-    max-height: 320px;
+    max-height: 520px;
     overflow-y: auto;
     padding: 0.25rem 0;
     margin-bottom: 0.5rem;
@@ -1158,7 +1158,7 @@ def _render_smart_plan_chat(phase: int) -> None:
 
 # ── Report tab ────────────────────────────────────────────────────────────────
 with tab_report:
-    col_r, col_c = st.columns([3, 1], gap="large")
+    col_r, col_c = st.columns([2, 1], gap="large")
     with col_r:
         st.markdown(result.report_md)
         st.markdown("<div style='height:1rem'></div>", unsafe_allow_html=True)
@@ -1191,7 +1191,7 @@ with tab_charts:
     w_end = result.week_end
     _PC = dict(use_container_width=True, config={"displayModeBar": False})
 
-    col_ch, col_cc = st.columns([3, 1], gap="large")
+    col_ch, col_cc = st.columns([2, 1], gap="large")
     with col_ch:
         st.markdown(
             _html_section_header("Plan Adherence", "How closely did this week match the targets?"),
@@ -1466,21 +1466,28 @@ with tab_smart:
                 rec.new_fat_g = float(new_fat)
                 rec.prev_plan_text = prev_plan
 
-                with st.spinner("Synthesising Garmin + MacroFactor + biofeedback…"):
-                    try:
-                        rec.analysis_text = run_analysis(
-                            rec,
-                            result.mf_data,
-                            result.garmin_data,
-                            result.week_start,
-                            result.week_end,
-                            _api_key(),
-                        )
-                        rec.phase = 2
-                        _persist_save_rec()
-                    except Exception as exc:
-                        st.error(f"Analysis failed: {exc}", icon="🚨")
-                st.rerun()
+                if not _api_key():
+                    st.error("No API key — set ANTHROPIC_API_KEY.", icon="🔒")
+                else:
+                    _err = None
+                    with st.spinner("Synthesising Garmin + MacroFactor + biofeedback…"):
+                        try:
+                            rec.analysis_text = run_analysis(
+                                rec,
+                                result.mf_data,
+                                result.garmin_data,
+                                result.week_start,
+                                result.week_end,
+                                _api_key(),
+                            )
+                            rec.phase = 2
+                            _persist_save_rec()
+                        except Exception as exc:
+                            _err = str(exc)
+                    if _err:
+                        st.error(f"Analysis failed: {_err}", icon="🚨")
+                    else:
+                        st.rerun()
 
     # ── Phase 2 — Performance-First Analysis ─────────────────────────────────
     elif rec.phase == 2:
@@ -1500,14 +1507,21 @@ with tab_smart:
             col_fwd, col_bk = st.columns([3, 1], gap="medium")
             with col_fwd:
                 if st.button("Generate Strategy Proposal →", type="primary", use_container_width=True):
-                    with st.spinner("Drafting strategy proposal…"):
-                        try:
-                            rec.proposal_text = run_proposal(rec, _api_key())
-                            rec.phase = 3
-                            _persist_save_rec()
-                        except Exception as exc:
-                            st.error(f"Proposal failed: {exc}", icon="🚨")
-                    st.rerun()
+                    if not _api_key():
+                        st.error("No API key — set ANTHROPIC_API_KEY.", icon="🔒")
+                    else:
+                        _err = None
+                        with st.spinner("Drafting strategy proposal…"):
+                            try:
+                                rec.proposal_text = run_proposal(rec, _api_key())
+                                rec.phase = 3
+                                _persist_save_rec()
+                            except Exception as exc:
+                                _err = str(exc)
+                        if _err:
+                            st.error(f"Proposal failed: {_err}", icon="🚨")
+                        else:
+                            st.rerun()
             with col_bk:
                 if st.button("← Edit Interview", use_container_width=True):
                     rec.phase = 1
@@ -1540,14 +1554,21 @@ with tab_smart:
             col_app, col_rev, col_rst = st.columns([3, 2, 1], gap="medium")
             with col_app:
                 if st.button("✅  Approve & Generate Weekly Plan", type="primary", use_container_width=True):
-                    with st.spinner("Building your personalised 7-day plan…"):
-                        try:
-                            rec.week_template_md = run_template(rec, _api_key())
-                            rec.phase = 4
-                            _persist_save_rec()
-                        except Exception as exc:
-                            st.error(f"Template generation failed: {exc}", icon="🚨")
-                    st.rerun()
+                    if not _api_key():
+                        st.error("No API key — set ANTHROPIC_API_KEY.", icon="🔒")
+                    else:
+                        _err = None
+                        with st.spinner("Building your personalised 7-day plan…"):
+                            try:
+                                rec.week_template_md = run_template(rec, _api_key())
+                                rec.phase = 4
+                                _persist_save_rec()
+                            except Exception as exc:
+                                _err = str(exc)
+                        if _err:
+                            st.error(f"Template generation failed: {_err}", icon="🚨")
+                        else:
+                            st.rerun()
             with col_rev:
                 if st.button("← Revise Analysis", use_container_width=True):
                     rec.phase = 1
@@ -1636,11 +1657,17 @@ with tab_smart:
                     use_container_width=True,
                     key="update_plan_btn",
                 ):
-                    with st.spinner("Regenerating plan with your changes…"):
-                        try:
-                            rec.week_template_md = run_plan_update(rec, _api_key())
-                            _persist_save_rec()
-                            st.success("Plan updated! Scroll left to review the changes.", icon="✅")
-                        except Exception as exc:
-                            st.error(f"Update failed: {exc}", icon="🚨")
-                    st.rerun()
+                    if not _api_key():
+                        st.error("No API key — set ANTHROPIC_API_KEY.", icon="🔒")
+                    else:
+                        _err = None
+                        with st.spinner("Regenerating plan with your changes…"):
+                            try:
+                                rec.week_template_md = run_plan_update(rec, _api_key())
+                                _persist_save_rec()
+                            except Exception as exc:
+                                _err = str(exc)
+                        if _err:
+                            st.error(f"Update failed: {_err}", icon="🚨")
+                        else:
+                            st.rerun()

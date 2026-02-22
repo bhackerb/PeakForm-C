@@ -1,55 +1,154 @@
 """PeakForm session persistence.
 
-Saves all generated state to ~/.peakform/ (configurable via PEAKFORM_STATE_DIR).
+Backends
+--------
+- **Local filesystem** (default): ``~/.peakform/``
+  Good for local development.  Ephemeral on Cloud Run.
 
-State expires on the Saturday that follows the analysis week-end date:
-  - week_end is Sunday of the analysis week
-  - expiry = week_end + 6 days  (the following Saturday)
-  - On expiry Saturday the saved state is ignored; a fresh upload is expected
+- **Google Cloud Storage** (recommended for Cloud Run):
+  Set ``PEAKFORM_GCS_BUCKET`` env var to a bucket name.
+  The Cloud Run service account needs ``roles/storage.objectUser``.
 
-Directory layout
-----------------
-~/.peakform/
-  session.json      metadata  (version, week_start, week_end, saved_at)
-  result.pkl        pickled RunResult  (mf_data, garmin_data, report_md, …)
-  rec.json          InterviewState as plain dict
-  messages.json     AI Coach chat history
-  uploads/
-    macrofactor.xlsx
-    garmin.csv
+State expires on the Saturday following the analysis week-end date:
+  week_end (Sunday) + 6 days → expiry Saturday.
 """
 
 from __future__ import annotations
 
+import abc
 import json
 import os
 import pickle
-import shutil
 from datetime import date, timedelta
 from pathlib import Path
 from typing import Any, Optional
 
 
 # ---------------------------------------------------------------------------
-# Storage locations
+# Storage keys
 # ---------------------------------------------------------------------------
 
-_DEFAULT_DIR = Path.home() / ".peakform"
-STATE_DIR     = Path(os.environ.get("PEAKFORM_STATE_DIR", str(_DEFAULT_DIR)))
-UPLOADS_DIR   = STATE_DIR / "uploads"
-SESSION_JSON  = STATE_DIR / "session.json"
-REC_JSON      = STATE_DIR / "rec.json"
-MESSAGES_JSON = STATE_DIR / "messages.json"
-RESULT_PKL    = STATE_DIR / "result.pkl"
-MF_UPLOAD     = UPLOADS_DIR / "macrofactor.xlsx"
-GARMIN_UPLOAD = UPLOADS_DIR / "garmin.csv"
+_SESSION  = "session.json"
+_RESULT   = "result.pkl"
+_REC      = "rec.json"
+_MESSAGES = "messages.json"
+_MF_UPLOAD     = "uploads/macrofactor.xlsx"
+_GARMIN_UPLOAD = "uploads/garmin.csv"
 
 _VERSION = 1
 
 
-def _ensure_dirs() -> None:
-    STATE_DIR.mkdir(parents=True, exist_ok=True)
-    UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+# ---------------------------------------------------------------------------
+# Backend ABC
+# ---------------------------------------------------------------------------
+
+class _Backend(abc.ABC):
+    @abc.abstractmethod
+    def write_bytes(self, key: str, data: bytes) -> None: ...
+    @abc.abstractmethod
+    def write_text(self, key: str, text: str) -> None: ...
+    @abc.abstractmethod
+    def read_bytes(self, key: str) -> Optional[bytes]: ...
+    @abc.abstractmethod
+    def read_text(self, key: str) -> Optional[str]: ...
+    @abc.abstractmethod
+    def exists(self, key: str) -> bool: ...
+    @abc.abstractmethod
+    def delete(self, key: str) -> None: ...
+
+
+class _LocalBackend(_Backend):
+    """Persist to a directory on the local filesystem."""
+
+    def __init__(self, base_dir: Path):
+        self._base = base_dir
+        self._base.mkdir(parents=True, exist_ok=True)
+
+    def _path(self, key: str) -> Path:
+        p = self._base / key
+        p.parent.mkdir(parents=True, exist_ok=True)
+        return p
+
+    def write_bytes(self, key: str, data: bytes) -> None:
+        self._path(key).write_bytes(data)
+
+    def write_text(self, key: str, text: str) -> None:
+        self._path(key).write_text(text, encoding="utf-8")
+
+    def read_bytes(self, key: str) -> Optional[bytes]:
+        p = self._base / key
+        return p.read_bytes() if p.exists() else None
+
+    def read_text(self, key: str) -> Optional[str]:
+        p = self._base / key
+        return p.read_text(encoding="utf-8") if p.exists() else None
+
+    def exists(self, key: str) -> bool:
+        return (self._base / key).exists()
+
+    def delete(self, key: str) -> None:
+        p = self._base / key
+        if p.exists():
+            p.unlink(missing_ok=True)
+
+
+class _GCSBackend(_Backend):
+    """Persist to a Google Cloud Storage bucket (cross-device, Cloud Run safe)."""
+
+    def __init__(self, bucket_name: str, prefix: str = "state"):
+        from google.cloud import storage as gcs  # lazy — heavy import
+        self._bucket = gcs.Client().bucket(bucket_name)
+        self._prefix = prefix
+
+    def _blob(self, key: str):
+        return self._bucket.blob(f"{self._prefix}/{key}")
+
+    def write_bytes(self, key: str, data: bytes) -> None:
+        self._blob(key).upload_from_string(data, content_type="application/octet-stream")
+
+    def write_text(self, key: str, text: str) -> None:
+        self._blob(key).upload_from_string(text, content_type="text/plain; charset=utf-8")
+
+    def read_bytes(self, key: str) -> Optional[bytes]:
+        blob = self._blob(key)
+        return blob.download_as_bytes() if blob.exists() else None
+
+    def read_text(self, key: str) -> Optional[str]:
+        blob = self._blob(key)
+        return blob.download_as_text(encoding="utf-8") if blob.exists() else None
+
+    def exists(self, key: str) -> bool:
+        return self._blob(key).exists()
+
+    def delete(self, key: str) -> None:
+        blob = self._blob(key)
+        if blob.exists():
+            blob.delete()
+
+
+# ---------------------------------------------------------------------------
+# Backend factory (cached)
+# ---------------------------------------------------------------------------
+
+_backend_cache: Optional[_Backend] = None
+
+
+def _get_backend() -> _Backend:
+    global _backend_cache
+    if _backend_cache is not None:
+        return _backend_cache
+
+    bucket = os.environ.get("PEAKFORM_GCS_BUCKET")
+    if bucket:
+        try:
+            _backend_cache = _GCSBackend(bucket)
+            return _backend_cache
+        except Exception:
+            pass  # fall through to local
+
+    base = Path(os.environ.get("PEAKFORM_STATE_DIR", str(Path.home() / ".peakform")))
+    _backend_cache = _LocalBackend(base)
+    return _backend_cache
 
 
 # ---------------------------------------------------------------------------
@@ -57,12 +156,11 @@ def _ensure_dirs() -> None:
 # ---------------------------------------------------------------------------
 
 def _expiry_date(week_end_iso: str) -> date:
-    """week_end is Sunday; the expiry Saturday is 6 days later."""
+    """week_end is Sunday; expiry Saturday is 6 days later."""
     return date.fromisoformat(week_end_iso) + timedelta(days=6)
 
 
 def is_expired(session: dict) -> bool:
-    """True if the saved session is at or past its expiry Saturday."""
     try:
         return date.today() >= _expiry_date(session["week_end"])
     except (KeyError, ValueError, TypeError):
@@ -70,10 +168,8 @@ def is_expired(session: dict) -> bool:
 
 
 def days_until_reset(session: dict) -> Optional[int]:
-    """Calendar days until the Saturday reset, or None if expired."""
     try:
-        delta = (_expiry_date(session["week_end"]) - date.today()).days
-        return max(0, delta)
+        return max(0, (_expiry_date(session["week_end"]) - date.today()).days)
     except Exception:
         return None
 
@@ -87,22 +183,22 @@ def is_saturday() -> bool:
 # ---------------------------------------------------------------------------
 
 def save_uploads(mf_path: str, garmin_path: str) -> None:
-    """Copy the two uploaded files to persistent storage."""
-    _ensure_dirs()
-    shutil.copy2(mf_path, MF_UPLOAD)
-    shutil.copy2(garmin_path, GARMIN_UPLOAD)
+    be = _get_backend()
+    with open(mf_path, "rb") as f:
+        be.write_bytes(_MF_UPLOAD, f.read())
+    with open(garmin_path, "rb") as f:
+        be.write_bytes(_GARMIN_UPLOAD, f.read())
 
 
 def save_result(result: Any) -> None:
-    """Pickle the full RunResult (DataFrames included)."""
-    _ensure_dirs()
-    with open(RESULT_PKL, "wb") as fh:
-        pickle.dump(result, fh, protocol=pickle.HIGHEST_PROTOCOL)
+    _get_backend().write_bytes(
+        _RESULT, pickle.dumps(result, protocol=pickle.HIGHEST_PROTOCOL)
+    )
 
 
 def save_session_meta(week_start: str, week_end: str) -> None:
-    _ensure_dirs()
-    SESSION_JSON.write_text(
+    _get_backend().write_text(
+        _SESSION,
         json.dumps(
             {
                 "version": _VERSION,
@@ -111,24 +207,19 @@ def save_session_meta(week_start: str, week_end: str) -> None:
                 "saved_at": date.today().isoformat(),
             },
             indent=2,
-        )
+        ),
     )
 
 
 def save_rec(rec_dict: dict) -> None:
-    """Persist InterviewState (as a plain dict) to JSON."""
-    _ensure_dirs()
-    REC_JSON.write_text(json.dumps(rec_dict, indent=2, default=str))
+    _get_backend().write_text(_REC, json.dumps(rec_dict, indent=2, default=str))
 
 
 def save_messages(messages: list) -> None:
-    """Persist AI Coach chat history to JSON."""
-    _ensure_dirs()
-    MESSAGES_JSON.write_text(json.dumps(messages, indent=2))
+    _get_backend().write_text(_MESSAGES, json.dumps(messages, indent=2))
 
 
 def save_all(result: Any, rec_dict: dict, messages: list) -> None:
-    """Save result + metadata + rec + messages in a single call."""
     save_result(result)
     save_session_meta(
         result.week_start.strftime("%Y-%m-%d"),
@@ -143,41 +234,42 @@ def save_all(result: Any, rec_dict: dict, messages: list) -> None:
 # ---------------------------------------------------------------------------
 
 def load_session() -> Optional[dict]:
-    """Return raw session metadata if it exists and is not expired."""
-    if not SESSION_JSON.exists():
+    raw = _get_backend().read_text(_SESSION)
+    if raw is None:
         return None
     try:
-        s = json.loads(SESSION_JSON.read_text())
+        s = json.loads(raw)
         return None if is_expired(s) else s
     except Exception:
         return None
 
 
 def load_result() -> Optional[Any]:
-    """Unpickle the saved RunResult, or None on any error."""
-    if not RESULT_PKL.exists():
+    data = _get_backend().read_bytes(_RESULT)
+    if data is None:
         return None
     try:
-        with open(RESULT_PKL, "rb") as fh:
-            return pickle.load(fh)
+        return pickle.loads(data)
     except Exception:
         return None
 
 
 def load_rec_dict() -> dict:
-    if not REC_JSON.exists():
+    raw = _get_backend().read_text(_REC)
+    if raw is None:
         return {}
     try:
-        return json.loads(REC_JSON.read_text())
+        return json.loads(raw)
     except Exception:
         return {}
 
 
 def load_messages() -> list:
-    if not MESSAGES_JSON.exists():
+    raw = _get_backend().read_text(_MESSAGES)
+    if raw is None:
         return []
     try:
-        return json.loads(MESSAGES_JSON.read_text())
+        return json.loads(raw)
     except Exception:
         return []
 
@@ -187,13 +279,9 @@ def load_all() -> Optional[dict]:
     Load the complete saved session.
 
     Returns None if no valid (non-expired) state exists.
-    On success returns:
-        {
-            "session":  dict,
-            "result":   RunResult,
-            "rec":      dict,
-            "messages": list,
-        }
+    On success returns::
+
+        { "session": dict, "result": RunResult, "rec": dict, "messages": list }
     """
     session = load_session()
     if session is None:
@@ -214,9 +302,9 @@ def load_all() -> Optional[dict]:
 # ---------------------------------------------------------------------------
 
 def clear_all() -> None:
-    """Delete every persisted file (called on explicit reset)."""
-    for p in [SESSION_JSON, REC_JSON, MESSAGES_JSON, RESULT_PKL]:
+    be = _get_backend()
+    for key in [_SESSION, _REC, _MESSAGES, _RESULT]:
         try:
-            p.unlink(missing_ok=True)
+            be.delete(key)
         except Exception:
             pass

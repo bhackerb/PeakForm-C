@@ -25,6 +25,7 @@ substitutions:
   _REGION:        us-central1
   _AR_HOSTNAME:   us-central1-docker.pkg.dev
   _AR_REPO:       peakform
+  _GCS_BUCKET:    ""   # Set to a GCS bucket name for cross-device state persistence
 
 steps:
 
@@ -77,6 +78,7 @@ steps:
       - --min-instances=0
       - --max-instances=3
       - --port=8080
+      - --set-env-vars=PEAKFORM_GCS_BUCKET=$_GCS_BUCKET
       - --quiet
 
 images:
