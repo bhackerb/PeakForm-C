@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+from dataclasses import asdict, fields as dc_fields
 
 import streamlit as st
 
@@ -675,6 +676,50 @@ def _init_agent(result) -> None:
         del st.session_state["agent"]
 
 
+def _try_restore_state() -> None:
+    """Restore result + rec + messages from disk if valid saved state exists."""
+    if "result" in st.session_state:
+        return  # live state already present — nothing to do
+    try:
+        from peakform import persistence as _p
+        saved = _p.load_all()
+        if saved is None:
+            return
+        st.session_state.result = saved["result"]
+        st.session_state.messages = saved["messages"]
+        # Reconstruct InterviewState from the saved dict, ignoring unknown keys
+        from peakform.recommendations import InterviewState
+        rec_dict = saved["rec"]
+        if rec_dict:
+            known = {f.name for f in dc_fields(InterviewState)}
+            filtered = {k: v for k, v in rec_dict.items() if k in known}
+            st.session_state.rec = InterviewState(**filtered)
+        else:
+            st.session_state.setdefault("rec", InterviewState(phase=0))
+        _init_agent(st.session_state.result)
+    except Exception:
+        pass  # restoration failure is non-fatal — user can re-upload
+
+
+def _persist_save_rec() -> None:
+    """Snapshot InterviewState to disk. Non-fatal."""
+    try:
+        from peakform import persistence as _p
+        if "rec" in st.session_state:
+            _p.save_rec(asdict(st.session_state.rec))
+    except Exception:
+        pass
+
+
+def _persist_save_messages() -> None:
+    """Snapshot AI Coach chat history to disk. Non-fatal."""
+    try:
+        from peakform import persistence as _p
+        _p.save_messages(st.session_state.get("messages", []))
+    except Exception:
+        pass
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Password gate
 # ─────────────────────────────────────────────────────────────────────────────
@@ -739,6 +784,7 @@ def _check_password() -> None:
 
 
 _check_password()
+_try_restore_state()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -786,6 +832,41 @@ with st.sidebar:
         use_container_width=True,
     )
 
+    # ── Persistence status ───────────────────────────────────────────────────
+    try:
+        from peakform import persistence as _p
+        _sm = _p.load_session()
+        if _sm is not None:
+            _days = _p.days_until_reset(_sm)
+            if _p.is_saturday():
+                st.markdown(
+                    '<div style="background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.25);'
+                    'border-radius:8px;padding:0.5rem 0.75rem;font-size:0.74rem;color:#a5b4fc;margin-top:0.6rem;">'
+                    '📅 <strong>New upload window</strong><br>'
+                    'Upload fresh files to start the new week.</div>',
+                    unsafe_allow_html=True,
+                )
+            elif _days is not None and _days <= 2:
+                st.markdown(
+                    f'<div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);'
+                    f'border-radius:8px;padding:0.5rem 0.75rem;font-size:0.74rem;'
+                    f'color:rgba(251,191,36,0.85);margin-top:0.6rem;">'
+                    f'⏱ State resets Saturday ({_days}d left)</div>',
+                    unsafe_allow_html=True,
+                )
+            else:
+                _ws = _sm.get("week_start", "")
+                _we = _sm.get("week_end", "")
+                st.markdown(
+                    f'<div style="background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.15);'
+                    f'border-radius:8px;padding:0.5rem 0.75rem;font-size:0.74rem;'
+                    f'color:rgba(110,231,183,0.8);margin-top:0.6rem;">'
+                    f'💾 Session saved · {_ws} – {_we}</div>',
+                    unsafe_allow_html=True,
+                )
+    except Exception:
+        pass
+
     # ── Footer ───────────────────────────────────────────────────────────────
     st.markdown(
         '<div style="color:rgba(100,116,139,0.4);font-size:0.68rem;text-align:center;padding:1rem 0 0.5rem;">'
@@ -807,6 +888,7 @@ if run_btn and can_run:
     with st.spinner("Analysing your data…"):
         try:
             from peakform.agent import run_full
+            from peakform.recommendations import InterviewState
 
             result = run_full(
                 mf_path,
@@ -816,7 +898,16 @@ if run_btn and can_run:
             )
             st.session_state.result = result
             st.session_state.messages = []
+            st.session_state.rec = InterviewState(phase=0)  # fresh Smart Plan
             _init_agent(result)
+
+            # ── Persist to disk ──────────────────────────────────────────────
+            try:
+                from peakform import persistence as _p
+                _p.save_uploads(mf_path, garmin_path)
+                _p.save_all(result, asdict(st.session_state.rec), [])
+            except Exception:
+                pass  # persistence failure is non-fatal
 
         except Exception as exc:
             st.error(f"Analysis failed: {exc}", icon="🚨")
@@ -992,6 +1083,7 @@ def _render_chat_panel(key: str = "report") -> None:
             except Exception as exc:
                 reply = f"⚠️ Error: {exc}"
         msgs.append({"role": "assistant", "content": reply})
+        _persist_save_messages()
         st.rerun()
 
     if st.session_state.get("messages"):
@@ -1055,6 +1147,7 @@ def _render_smart_plan_chat(phase: int) -> None:
             msgs.append({"role": "user", "content": user_input.strip()})
             msgs.append({"role": "assistant", "content": reply})
             setattr(rec, phase_attr, msgs)
+            _persist_save_rec()   # mid-session update persisted immediately
             st.rerun()
 
     if getattr(rec, phase_attr, []):
@@ -1384,6 +1477,7 @@ with tab_smart:
                             _api_key(),
                         )
                         rec.phase = 2
+                        _persist_save_rec()
                     except Exception as exc:
                         st.error(f"Analysis failed: {exc}", icon="🚨")
                 st.rerun()
@@ -1410,6 +1504,7 @@ with tab_smart:
                         try:
                             rec.proposal_text = run_proposal(rec, _api_key())
                             rec.phase = 3
+                            _persist_save_rec()
                         except Exception as exc:
                             st.error(f"Proposal failed: {exc}", icon="🚨")
                     st.rerun()
@@ -1449,6 +1544,7 @@ with tab_smart:
                         try:
                             rec.week_template_md = run_template(rec, _api_key())
                             rec.phase = 4
+                            _persist_save_rec()
                         except Exception as exc:
                             st.error(f"Template generation failed: {exc}", icon="🚨")
                     st.rerun()
@@ -1459,6 +1555,7 @@ with tab_smart:
             with col_rst:
                 if st.button("🔄 Reset", use_container_width=True):
                     st.session_state.rec = InterviewState(phase=0)
+                    _persist_save_rec()
                     st.rerun()
 
         with col_chat:
@@ -1510,6 +1607,7 @@ with tab_smart:
             with col_rst2:
                 if st.button("🔄  New Week", use_container_width=True):
                     st.session_state.rec = InterviewState(phase=0)
+                    _persist_save_rec()
                     st.rerun()
 
         with col_chat:
@@ -1541,6 +1639,7 @@ with tab_smart:
                     with st.spinner("Regenerating plan with your changes…"):
                         try:
                             rec.week_template_md = run_plan_update(rec, _api_key())
+                            _persist_save_rec()
                             st.success("Plan updated! Scroll left to review the changes.", icon="✅")
                         except Exception as exc:
                             st.error(f"Update failed: {exc}", icon="🚨")
