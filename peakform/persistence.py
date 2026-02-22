@@ -220,13 +220,26 @@ def save_messages(messages: list) -> None:
 
 
 def save_all(result: Any, rec_dict: dict, messages: list) -> None:
-    save_result(result)
+    # ── Always save the lightweight files first ───────────────────────────────
+    # These are small JSON blobs that never fail. Critically, they must be
+    # written even if the pickle below fails, so that load_all() can at
+    # minimum fall back to re-running analysis from the saved upload files.
     save_session_meta(
         result.week_start.strftime("%Y-%m-%d"),
         result.week_end.strftime("%Y-%m-%d"),
     )
     save_rec(rec_dict)
     save_messages(messages)
+
+    # ── Optimistically try to pickle the full RunResult ───────────────────────
+    # Pickle is large and can fail (e.g. non-picklable objects deep in
+    # DataFrames, memory pressure). It is not fatal: load_all() will fall
+    # back to re-running analysis from the saved uploads when result.pkl is
+    # absent or corrupt.
+    try:
+        save_result(result)
+    except Exception:
+        pass
 
 
 # ---------------------------------------------------------------------------
@@ -274,11 +287,53 @@ def load_messages() -> list:
         return []
 
 
+def _rerun_from_uploads(week_start_iso: str) -> Optional[Any]:
+    """Download the saved upload files and re-run the full analysis.
+
+    Used as a fallback when result.pkl is absent or unpicklable.
+    Re-running is slower (~2s) but always works.
+    """
+    be = _get_backend()
+    mf_bytes = be.read_bytes(_MF_UPLOAD)
+    garmin_bytes = be.read_bytes(_GARMIN_UPLOAD)
+    if mf_bytes is None or garmin_bytes is None:
+        return None
+
+    import shutil
+    import tempfile
+
+    tmpdir = tempfile.mkdtemp()
+    try:
+        import os
+        mf_path = os.path.join(tmpdir, "macrofactor.xlsx")
+        garmin_path = os.path.join(tmpdir, "garmin.csv")
+        with open(mf_path, "wb") as f:
+            f.write(mf_bytes)
+        with open(garmin_path, "wb") as f:
+            f.write(garmin_bytes)
+
+        from peakform.agent import run_full
+        # Pass the original week so we analyse the correct Mon–Sun window,
+        # not the current week at load time.
+        return run_full(mf_path, garmin_path, week=week_start_iso, verbose=False)
+    except Exception:
+        return None
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+
 def load_all() -> Optional[dict]:
     """
     Load the complete saved session.
 
     Returns None if no valid (non-expired) state exists.
+
+    Load order
+    ----------
+    1. Read session.json (expiry + week bounds).
+    2. Try result.pkl (fast — full RunResult pickled).
+    3. Fall back to re-running analysis from saved upload files (~2 s).
+
     On success returns::
 
         { "session": dict, "result": RunResult, "rec": dict, "messages": list }
@@ -286,9 +341,14 @@ def load_all() -> Optional[dict]:
     session = load_session()
     if session is None:
         return None
+
     result = load_result()
     if result is None:
+        # pickle absent or corrupt — re-derive from the saved source files
+        result = _rerun_from_uploads(session.get("week_start", ""))
+    if result is None:
         return None
+
     return {
         "session": session,
         "result": result,
